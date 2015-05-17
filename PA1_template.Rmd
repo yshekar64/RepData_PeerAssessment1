@@ -7,19 +7,97 @@ output:
 
 
 ## Loading and preprocessing the data
-
-
-
+```{r}
+        library(dplyr)
+        library(lattice)
+        rawData <- read.csv(unz("activity.zip","activity.csv"))
+        
+        sumStepsByDate <- summarize(group_by(rawData,date),sum(steps,na.rm=TRUE))
+        names(sumStepsByDate) <- c("date","stepsPerDay")
+        
+        meanStepsByInt <- summarize(group_by(rawData,interval),mean(steps,na.rm=TRUE))
+        names(meanStepsByInt) <- c("int","stepsPerInterval")
+                         
+```
 ## What is mean total number of steps taken per day?
+## Plot the histogram of total no. of steps taken each day
+```{r}
+        histogram(~stepsPerDay,sumStepsByDate)
+```
+## 
+## Calculate and report mean and median of total no. of steps per day
+```{r}
+        rawMean <- mean(sumStepsByDate$stepsPerDay,na.rm=TRUE)
+        print(rawMean)
+        rawMedian <- median(sumStepsByDate$stepsPerDay,na.rm=TRUE)
+        print(rawMedian)
 
-
-
+```
 ## What is the average daily activity pattern?
-
-
+## Time series plot of the 5-minute interval and the average number of steps taken, averaged across 
+## all days (y-axis)
+```{r}
+        xyplot(stepsPerInterval~int,meanStepsByInt)
+        maxRowId <- which.max(meanStepsByInt$stepsPerInterval)
+```
+### The 5 min interval with the max number of steps (avg across all days) in the dataset is
+```{r} 
+print(meanStepsByInt$int[maxRowId])
+```
 
 ## Imputing missing values
+### Total number of missing values in the data set
+```{r}
+        sum(is.na(rawData))
+```
+### Fill in all of the missing values in the dataset using mean for that 5 min interval
+```{r}
+        lim1 <- 0
+        lim2 <- 0
+        modData <- rawData
+        
+        for (i in 1:61) {
+                lim1 <- lim2 + 1
+                if (i == 1) {lim2 <- 288} else {
+                        lim2 <- lim1 + 287}
+                rowCounter <- 0
+                for (k in lim1:lim2) {
+                  rowCounter <- rowCounter+1
+                  if (is.na(rawData$steps[k])) {
+                        modData$steps[k] <- meanStepsByInt$stepsPerInterval[rowCounter]
+                  }
+                }
+        
+        }
+        modSumStepsByDate <- summarize(group_by(modData,date),sum(steps,na.rm=TRUE))
+        names(modSumStepsByDate) <- c("date","stepsPerDay")
 
+        histogram(~stepsPerDay,modSumStepsByDate)
 
-
+        modMean <- mean(modSumStepsByDate$stepsPerDay,na.rm=TRUE)
+#### Change in Mean
+        print (modMean-rawMean)
+        if (modMean != 0) message("Mean has changed!!!")
+        modMedian <- median(modSumStepsByDate$stepsPerDay,na.rm=TRUE)
+#### Change in Median
+        print (modMedian-rawMedian)
+        if (modMedian != 0) message("Median has changed!!!")
+```        
 ## Are there differences in activity patterns between weekdays and weekends?
+```{r}        
+        x <- weekdays(as.Date(modData$date))
+        
+        for (i in 1:61*288) {
+                if ( (x[i] == "Saturday") | (x[i] == "Sunday") ) {
+                        modData$dayType[i] = "Weekend"
+                } else {
+                        modData$dayType[i] = "Weekdays"
+                }       
+        }
+
+        modMeanStepsByInt <- summarize(group_by(modData,interval,dayType),mean(steps,na.rm=TRUE))
+        names(modMeanStepsByInt) <- c("int","stepsPerInterval","dayType")
+        
+##        xyplot(stepsPerInterval~int | dayType,data = modMeanStepsByInt, layout = c(1,2))
+        
+```
